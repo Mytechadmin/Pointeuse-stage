@@ -39,4 +39,6 @@ J’ai défini le besoin, itéré sur les fonctionnalités (solde 35 h, verrouil
 
 ## Aperçu
 
-<!-- Mets ici tes captures d’écran -->
+
+<img width="944" height="938" alt="image" src="https://github.com/user-attachments/assets/6a71a8f4-977b-4458-82dc-62837f8b2015" />
+
