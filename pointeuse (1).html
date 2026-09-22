@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pointeuse - Horaires de travail</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --border: #334155;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --primary: #3b82f6;
+      --primary-hover: #2563eb;
+      --success: #22c55e;
+      --success-hover: #16a34a;
+      --danger: #ef4444;
+      --danger-hover: #dc2626;
+      --warning: #f59e0b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      min-height: 100vh;
+      padding: 1.5rem;
+    }
+    .container { max-width: 900px; margin: 0 auto; }
+    header {
+      display: flex; flex-wrap: wrap; justify-content: space-between;
+      align-items: center; gap: 1rem; margin-bottom: 1.5rem;
+    }
+    h1 { font-size: 1.75rem; font-weight: 700; }
+    .actions { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+    button {
+      border: none; border-radius: 8px; padding: 0.6rem 1rem;
+      font-size: 0.9rem; font-weight: 600; cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+      display: inline-flex; align-items: center; gap: 0.35rem;
+    }
+    button:active { transform: scale(0.97); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover:not(:disabled) { background: var(--primary-hover); }
+    .btn-success { background: var(--success); color: white; }
+    .btn-success:hover:not(:disabled) { background: var(--success-hover); }
+    .btn-danger { background: var(--danger); color: white; }
+    .btn-danger:hover:not(:disabled) { background: var(--danger-hover); }
+    .btn-secondary {
+      background: var(--card); color: var(--text); border: 1px solid var(--border);
+    }
+    .btn-secondary:hover:not(:disabled) { background: #334155; }
+    .btn-warning { background: var(--warning); color: #000; }
+    .btn-warning:hover:not(:disabled) { background: #d97706; }
+
+    .backup-status {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 10px; padding: 0.75rem 1.1rem; margin-bottom: 1.5rem;
+      display: flex; flex-wrap: wrap; justify-content: space-between;
+      align-items: center; gap: 0.75rem; font-size: 0.9rem;
+    }
+    .backup-status .status-text { display: flex; align-items: center; gap: 0.5rem; }
+    .status-dot {
+      width: 10px; height: 10px; border-radius: 50%; background: var(--muted);
+    }
+    .status-dot.active {
+      background: var(--success); box-shadow: 0 0 8px var(--success);
+    }
+
+    .totals {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem; margin-bottom: 1.5rem;
+    }
+    .total-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 1.25rem; text-align: center;
+    }
+    .total-card .label {
+      font-size: 0.85rem; color: var(--muted); margin-bottom: 0.35rem;
+      text-transform: uppercase; letter-spacing: 0.04em;
+    }
+    .total-card .value { font-size: 1.8rem; font-weight: 700; }
+    .total-card .value.positive { color: var(--success); }
+    .total-card .value.negative { color: var(--danger); }
+
+    .current-session {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 1.25rem; margin-bottom: 1.5rem;
+      display: flex; flex-wrap: wrap; justify-content: space-between;
+      align-items: center; gap: 1rem;
+    }
+    .session-info { font-size: 1.1rem; }
+    .session-info strong { color: var(--success); }
+
+    /* Résumé semaine en cours */
+    .week-summary {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 12px; margin-bottom: 1.5rem; overflow: hidden;
+    }
+    .week-summary.friday {
+      border-color: var(--warning);
+      box-shadow: 0 0 0 1px var(--warning);
+    }
+    .week-summary-header {
+      background: #273548; padding: 0.9rem 1.25rem;
+      display: flex; justify-content: space-between; align-items: center;
+      font-weight: 600;
+    }
+    .week-summary.friday .week-summary-header { background: #3b2f1a; }
+    .week-days { padding: 0.75rem 1.25rem; }
+    .week-day-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 0.45rem 0; border-bottom: 1px solid var(--border); font-size: 0.95rem;
+    }
+    .week-day-row:last-child { border-bottom: none; }
+    .week-day-row .day-name { color: var(--muted); min-width: 110px; }
+    .week-day-row .day-hours { font-weight: 600; }
+    .week-day-row.today .day-name { color: var(--text); font-weight: 600; }
+    .week-day-row.empty .day-hours { color: var(--muted); font-weight: 400; }
+    .week-footer {
+      background: #1a2332; padding: 0.9rem 1.25rem;
+      display: flex; flex-wrap: wrap; justify-content: space-between;
+      align-items: center; gap: 0.75rem; border-top: 1px solid var(--border);
+    }
+    .week-footer .total-label { color: var(--muted); font-size: 0.9rem; }
+    .week-footer .total-value { font-size: 1.15rem; font-weight: 700; }
+    .week-footer .balance { font-size: 1.25rem; font-weight: 700; }
+    .week-footer .balance.positive { color: var(--success); }
+    .week-footer .balance.negative { color: var(--danger); }
+
+    .section-title { font-size: 1.2rem; font-weight: 600; margin-bottom: 1rem; }
+
+    /* Groupes par semaine (dépliables) */
+    .week-group { margin-bottom: 0.85rem; }
+    .week-group-header {
+      background: #1e293b;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.85rem 1.15rem;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.5rem;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.15s;
+    }
+    .week-group-header:hover { background: #273548; }
+    .week-group-header .week-label {
+      font-weight: 600; font-size: 1rem;
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+    .week-group-header .chevron {
+      display: inline-block; transition: transform 0.2s;
+      font-size: 0.85rem; color: var(--muted);
+    }
+    .week-group.open .week-group-header .chevron { transform: rotate(90deg); }
+    .week-group-header .week-meta {
+      display: flex; gap: 1.25rem; align-items: center; font-size: 0.95rem;
+    }
+    .week-group-header .week-total { color: var(--muted); }
+    .week-group-header .week-balance { font-weight: 700; }
+    .week-group-header .week-balance.positive { color: var(--success); }
+    .week-group-header .week-balance.negative { color: var(--danger); }
+    .week-group-header.current {
+      border-color: var(--primary); background: #1a2744;
+    }
+    .week-group-header.current:hover { background: #1e2f55; }
+
+    .week-group-content {
+      display: none; margin-top: 0.5rem; padding-left: 0.25rem;
+    }
+    .week-group.open .week-group-content { display: block; }
+
+    .day-block {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 12px; margin-bottom: 0.5rem; overflow: hidden;
+    }
+    .day-header {
+      background: #273548; padding: 0.75rem 1.15rem;
+      display: flex; justify-content: space-between; align-items: center;
+      font-weight: 600; font-size: 0.95rem;
+    }
+    .day-total { color: var(--success); font-size: 0.9rem; }
+    .entries { padding: 0.4rem 0; }
+    .entry {
+      display: grid; grid-template-columns: 1fr 1fr auto;
+      gap: 0.75rem; align-items: center;
+      padding: 0.65rem 1.15rem; border-bottom: 1px solid var(--border);
+    }
+    .entry:last-child { border-bottom: none; }
+    .entry input[type="time"] {
+      background: #0f172a; border: 1px solid var(--border);
+      color: var(--text); padding: 0.35rem 0.55rem;
+      border-radius: 6px; font-size: 0.9rem; width: 100%;
+    }
+    .entry-actions { display: flex; gap: 0.35rem; }
+    .entry-actions button { padding: 0.35rem 0.6rem; font-size: 0.8rem; }
+    .empty { text-align: center; color: var(--muted); padding: 2rem; }
+
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+      display: none; justify-content: center; align-items: center;
+      z-index: 100; padding: 1rem;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 1.5rem; width: 100%; max-width: 420px;
+    }
+    .modal h2 { margin-bottom: 1.25rem; font-size: 1.25rem; }
+    .form-group { margin-bottom: 1rem; }
+    .form-group label {
+      display: block; font-size: 0.9rem; color: var(--muted); margin-bottom: 0.35rem;
+    }
+    .form-group input {
+      width: 100%; background: #0f172a; border: 1px solid var(--border);
+      color: var(--text); padding: 0.6rem 0.8rem; border-radius: 8px; font-size: 1rem;
+    }
+    .modal-actions {
+      display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem;
+    }
+
+    .toast {
+      position: fixed; bottom: 1.5rem; right: 1.5rem;
+      background: var(--success); color: white;
+      padding: 0.85rem 1.25rem; border-radius: 10px; font-weight: 600;
+      opacity: 0; transform: translateY(20px); transition: all 0.3s;
+      z-index: 200; pointer-events: none;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast.error { background: var(--danger); }
+
+    footer {
+      margin-top: 3rem; text-align: center; color: var(--muted); font-size: 0.85rem;
+    }
+
+    @media (max-width: 600px) {
+      .entry { grid-template-columns: 1fr; }
+      .entry-actions { justify-content: flex-end; }
+      .week-group-header { flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>⏱ Pointeuse</h1>
+      <div class="actions">
+        <button class="btn-secondary" onclick="exportData()">⬇ Exporter</button>
+        <button class="btn-secondary" onclick="document.getElementById('importFile').click()">⬆ Importer</button>
+        <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
+        <button class="btn-primary" onclick="openAddModal()">+ Ajouter</button>
+      </div>
+    </header>
+
+    <div class="backup-status">
+      <div class="status-text">
+        <span class="status-dot" id="backupDot"></span>
+        <span id="backupStatusText">Sauvegarde automatique désactivée</span>
+      </div>
+      <button class="btn-warning" id="btnAutoBackup" onclick="toggleAutoBackup()">
+        Activer la sauvegarde auto sur PC
+      </button>
+    </div>
+
+    <div class="totals">
+      <div class="total-card">
+        <div class="label">Aujourd'hui</div>
+        <div class="value" id="totalToday">0h00</div>
+      </div>
+      <div class="total-card">
+        <div class="label">Cette semaine</div>
+        <div class="value" id="totalWeek">0h00</div>
+      </div>
+      <div class="total-card">
+        <div class="label">Solde (base 35h)</div>
+        <div class="value" id="weekBalance">0h00</div>
+      </div>
+      <div class="total-card">
+        <div class="label">Ce mois</div>
+        <div class="value" id="totalMonth">0h00</div>
+      </div>
+    </div>
+
+    <!-- Résumé semaine en cours -->
+    <div class="week-summary" id="weekSummary">
+      <div class="week-summary-header">
+        <span id="weekSummaryTitle">Résumé de la semaine</span>
+        <span id="weekSummaryDates" style="font-weight:400;font-size:0.9rem;color:var(--muted)"></span>
+      </div>
+      <div class="week-days" id="weekDays"></div>
+      <div class="week-footer">
+        <div>
+          <div class="total-label">Total semaine</div>
+          <div class="total-value" id="weekSummaryTotal">0h00</div>
+        </div>
+        <div style="text-align:right">
+          <div class="total-label">Solde (base 35h)</div>
+          <div class="balance" id="weekSummaryBalance">0h00</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="current-session" id="currentSession">
+      <div class="session-info" id="sessionInfo">Aucune session en cours</div>
+      <div>
+        <button class="btn-success" id="btnClockIn" onclick="clockIn()">▶ Arrivée</button>
+        <button class="btn-danger" id="btnClockOut" onclick="clockOut()" style="display:none">⏹ Départ</button>
+      </div>
+    </div>
+
+    <div class="section-title">Historique (par semaine)</div>
+    <div id="history"></div>
+
+    <footer>
+      Base hebdomadaire : 35 h (lundi → vendredi).<br>
+      Les semaines terminées sont repliées et verrouillées (lecture seule).<br>
+      Le vendredi, le bilan de la semaine en cours est mis en avant.
+    </footer>
+  </div>
+
+  <div class="modal-overlay" id="modal">
+    <div class="modal">
+      <h2 id="modalTitle">Ajouter un pointage</h2>
+      <div class="form-group">
+        <label>Date</label>
+        <input type="date" id="modalDate">
+      </div>
+      <div class="form-group">
+        <label>Heure d'arrivée</label>
+        <input type="time" id="modalStart">
+      </div>
+      <div class="form-group">
+        <label>Heure de départ</label>
+        <input type="time" id="modalEnd">
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="closeModal()">Annuler</button>
+        <button class="btn-primary" id="modalSaveBtn" onclick="saveModal()">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    let data = { entries: [], currentStart: null };
+    let editingId = null;
+    let autoBackupHandle = null;
+    let openWeeks = new Set();
+
+    const DAY_NAMES = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+    const BASE_WEEK_MINUTES = 35 * 60;
+
+    function generateId() {
+      return Date.now().toString(36) + Math.random().toString(36).slice(2);
+    }
+    function pad(n) { return n.toString().padStart(2, '0'); }
+    function formatDuration(minutes) {
+      if (minutes < 0) minutes = 0;
+      const h = Math.floor(minutes / 60);
+      const m = Math.round(minutes % 60);
+      return `${h}h${pad(m)}`;
+    }
+    function formatDurationSigned(minutes) {
+      const sign = minutes > 0 ? '+' : (minutes < 0 ? '-' : '');
+      const abs = Math.abs(minutes);
+      const h = Math.floor(abs / 60);
+      const m = Math.round(abs % 60);
+      return `${sign}${h}h${pad(m)}`;
+    }
+    function parseTime(timeStr) {
+      const [h, m] = timeStr.split(':').map(Number);
+      return h * 60 + m;
+    }
+    function minutesBetween(start, end) {
+      let diff = parseTime(end) - parseTime(start);
+      if (diff < 0) diff += 24 * 60;
+      return diff;
+    }
+    function todayStr() {
+      return new Date().toISOString().slice(0, 10);
+    }
+    function getWeekStart(dateStr) {
+      const d = new Date(dateStr + 'T12:00:00');
+      const day = d.getDay();
+      const diff = day === 0 ? -6 : 1 - day;
+      d.setDate(d.getDate() + diff);
+      return d.toISOString().slice(0, 10);
+    }
+    function getMonth(dateStr) {
+      return dateStr.slice(0, 7);
+    }
+    function showToast(msg, isError = false) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.className = 'toast show' + (isError ? ' error' : '');
+      setTimeout(() => t.classList.remove('show'), 2800);
+    }
+    function isEntryLocked(entry) {
+      const currentWeekStart = getWeekStart(todayStr());
+      const entryWeekStart = getWeekStart(entry.date);
+      return entryWeekStart !== currentWeekStart;
+    }
+
+    // ========== Sauvegarde ==========
+    function saveToLocalStorage() {
+      localStorage.setItem('pointeuse-data', JSON.stringify(data));
+    }
+    function load() {
+      const raw = localStorage.getItem('pointeuse-data');
+      if (raw) {
+        try {
+          data = JSON.parse(raw);
+          if (!data.entries) data.entries = [];
+          if (!('currentStart' in data)) data.currentStart = null;
+        } catch (e) { console.error(e); }
+      }
+    }
+    async function writeAutoBackup() {
+      if (!autoBackupHandle) return;
+      try {
+        const writable = await autoBackupHandle.createWritable();
+        await writable.write(JSON.stringify(data, null, 2));
+        await writable.close();
+      } catch (err) {
+        autoBackupHandle = null;
+        updateBackupUI();
+        showToast('Sauvegarde auto interrompue', true);
+      }
+    }
+    async function save() {
+      saveToLocalStorage();
+      await writeAutoBackup();
+    }
+    function updateBackupUI() {
+      const dot = document.getElementById('backupDot');
+      const text = document.getElementById('backupStatusText');
+      const btn = document.getElementById('btnAutoBackup');
+      if (autoBackupHandle) {
+        dot.classList.add('active');
+        text.textContent = 'Sauvegarde automatique active sur le PC';
+        btn.textContent = 'Changer le fichier de sauvegarde';
+        btn.className = 'btn-secondary';
+      } else {
+        dot.classList.remove('active');
+        text.textContent = 'Sauvegarde automatique désactivée';
+        btn.textContent = 'Activer la sauvegarde auto sur PC';
+        btn.className = 'btn-warning';
+      }
+    }
+    async function toggleAutoBackup() {
+      if (!window.showSaveFilePicker) {
+        showToast('Navigateur non supporté (Chrome / Edge / Brave)', true);
+        return;
+      }
+      try {
+        const handle = await window.showSaveFilePicker({
+          suggestedName: 'pointeuse-sauvegarde.json',
+          types: [{ description: 'Fichier JSON', accept: { 'application/json': ['.json'] } }]
+        });
+        autoBackupHandle = handle;
+        await writeAutoBackup();
+        updateBackupUI();
+        showToast('Sauvegarde automatique activée');
+      } catch (err) {
+        if (err.name !== 'AbortError') showToast('Impossible d\'activer la sauvegarde auto', true);
+      }
+    }
+
+    // ========== Pointage ==========
+    async function clockIn() {
+      if (data.currentStart) return;
+      data.currentStart = new Date().toISOString();
+      await save();
+      render();
+      showToast('Arrivée enregistrée');
+    }
+    async function clockOut() {
+      if (!data.currentStart) return;
+      const start = new Date(data.currentStart);
+      const end = new Date();
+      const date = start.toISOString().slice(0, 10);
+      const startTime = pad(start.getHours()) + ':' + pad(start.getMinutes());
+      const endTime = pad(end.getHours()) + ':' + pad(end.getMinutes());
+      data.entries.push({ id: generateId(), date, start: startTime, end: endTime });
+      data.currentStart = null;
+      await save();
+      render();
+      showToast('Départ enregistré');
+    }
+
+    // ========== Calculs ==========
+    function getTotalMinutes(filterFn) {
+      return data.entries
+        .filter(filterFn)
+        .reduce((sum, e) => sum + minutesBetween(e.start, e.end), 0);
+    }
+    function getCurrentMinutes() {
+      if (!data.currentStart) return 0;
+      return Math.floor((new Date() - new Date(data.currentStart)) / 60000);
+    }
+
+    function updateTotals() {
+      const today = todayStr();
+      const weekStart = getWeekStart(today);
+      const month = getMonth(today);
+      const currentMin = getCurrentMinutes();
+
+      const todayMin = getTotalMinutes(e => e.date === today) + currentMin;
+      const weekMin = getTotalMinutes(e => e.date >= weekStart && e.date <= today) + currentMin;
+      const monthMin = getTotalMinutes(e => getMonth(e.date) === month) + currentMin;
+      const balance = weekMin - BASE_WEEK_MINUTES;
+
+      document.getElementById('totalToday').textContent = formatDuration(todayMin);
+      document.getElementById('totalWeek').textContent = formatDuration(weekMin);
+      document.getElementById('totalMonth').textContent = formatDuration(monthMin);
+
+      const balanceEl = document.getElementById('weekBalance');
+      balanceEl.textContent = formatDurationSigned(balance);
+      balanceEl.classList.remove('positive', 'negative');
+      if (balance > 0) balanceEl.classList.add('positive');
+      else if (balance < 0) balanceEl.classList.add('negative');
+    }
+
+    // ========== Résumé semaine en cours ==========
+    function renderWeekSummary() {
+      const today = todayStr();
+      const weekStart = getWeekStart(today);
+      const currentMin = getCurrentMinutes();
+      const isFridayOrLater = new Date().getDay() >= 5 || new Date().getDay() === 0;
+
+      const summaryEl = document.getElementById('weekSummary');
+      summaryEl.classList.toggle('friday', isFridayOrLater);
+
+      document.getElementById('weekSummaryTitle').textContent =
+        isFridayOrLater ? '📋 Bilan de la semaine' : 'Résumé de la semaine';
+
+      const startDate = new Date(weekStart + 'T12:00:00');
+      const endDate = new Date(startDate);
+      endDate.setDate(startDate.getDate() + 6);
+      const fmt = d => d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+      document.getElementById('weekSummaryDates').textContent = `${fmt(startDate)} → ${fmt(endDate)}`;
+
+      const daysHtml = [];
+      let weekTotal = 0;
+
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(startDate);
+        d.setDate(startDate.getDate() + i);
+        const dateStr = d.toISOString().slice(0, 10);
+        const dayName = DAY_NAMES[d.getDay()];
+        const isToday = dateStr === today;
+        const isFuture = dateStr > today;
+
+        let minutes = getTotalMinutes(e => e.date === dateStr);
+        if (isToday) minutes += currentMin;
+        weekTotal += minutes;
+
+        if (isFuture && !isFridayOrLater) continue;
+
+        const hoursText = minutes > 0 ? formatDuration(minutes) : '—';
+        const classes = ['week-day-row', isToday ? 'today' : '', minutes === 0 ? 'empty' : '']
+          .filter(Boolean).join(' ');
+
+        daysHtml.push(`
+          <div class="${classes}">
+            <span class="day-name">${dayName.charAt(0).toUpperCase() + dayName.slice(1)}${isToday ? ' (auj.)' : ''}</span>
+            <span class="day-hours">${hoursText}</span>
+          </div>
+        `);
+      }
+
+      document.getElementById('weekDays').innerHTML = daysHtml.join('');
+      document.getElementById('weekSummaryTotal').textContent = formatDuration(weekTotal);
+
+      const balance = weekTotal - BASE_WEEK_MINUTES;
+      const balanceEl = document.getElementById('weekSummaryBalance');
+      balanceEl.textContent = formatDurationSigned(balance);
+      balanceEl.classList.remove('positive', 'negative');
+      if (balance > 0) balanceEl.classList.add('positive');
+      else if (balance < 0) balanceEl.classList.add('negative');
+    }
+
+    // ========== Toggle semaine ==========
+    function toggleWeek(weekKey) {
+      if (openWeeks.has(weekKey)) {
+        openWeeks.delete(weekKey);
+      } else {
+        openWeeks.add(weekKey);
+      }
+      const group = document.querySelector(`.week-group[data-week="${weekKey}"]`);
+      if (group) {
+        group.classList.toggle('open', openWeeks.has(weekKey));
+      }
+    }
+
+    // ========== Historique groupé + dépliable + verrouillage ==========
+    function renderHistory() {
+      const container = document.getElementById('history');
+      if (data.entries.length === 0) {
+        container.innerHTML = '<div class="empty">Aucun pointage pour le moment</div>';
+        return;
+      }
+
+      const byWeek = {};
+      data.entries.forEach(e => {
+        const weekKey = getWeekStart(e.date);
+        if (!byWeek[weekKey]) byWeek[weekKey] = [];
+        byWeek[weekKey].push(e);
+      });
+
+      const weekKeys = Object.keys(byWeek).sort((a, b) => b.localeCompare(a));
+      const currentWeekStart = getWeekStart(todayStr());
+      let html = '';
+
+      // La semaine en cours est toujours ouverte
+      openWeeks.add(currentWeekStart);
+
+      weekKeys.forEach(weekKey => {
+        const entries = byWeek[weekKey];
+        const weekTotal = entries.reduce((s, e) => s + minutesBetween(e.start, e.end), 0);
+        const isCurrent = weekKey === currentWeekStart;
+        const totalWithCurrent = isCurrent ? weekTotal + getCurrentMinutes() : weekTotal;
+        const balance = totalWithCurrent - BASE_WEEK_MINUTES;
+
+        const startDate = new Date(weekKey + 'T12:00:00');
+        const endDate = new Date(startDate);
+        endDate.setDate(startDate.getDate() + 6);
+        const fmt = d => d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+
+        const balanceClass = balance > 0 ? 'positive' : (balance < 0 ? 'negative' : '');
+        const headerClass = isCurrent ? 'week-group-header current' : 'week-group-header';
+        const isOpen = openWeeks.has(weekKey);
+
+        html += `
+          <div class="week-group ${isOpen ? 'open' : ''}" data-week="${weekKey}">
+            <div class="${headerClass}" onclick="toggleWeek('${weekKey}')">
+              <div class="week-label">
+                <span class="chevron">▶</span>
+                Semaine du ${fmt(startDate)} → ${fmt(endDate)}
+                ${isCurrent ? ' <span style="color:var(--primary);font-size:0.85rem">(en cours)</span>' : ''}
+              </div>
+              <div class="week-meta">
+                <span class="week-total">${formatDuration(totalWithCurrent)}</span>
+                <span class="week-balance ${balanceClass}">${formatDurationSigned(balance)}</span>
+              </div>
+            </div>
+            <div class="week-group-content">
+        `;
+
+        // Jours
+        const byDate = {};
+        entries.forEach(e => {
+          if (!byDate[e.date]) byDate[e.date] = [];
+          byDate[e.date].push(e);
+        });
+        const dates = Object.keys(byDate).sort((a, b) => b.localeCompare(a));
+
+        dates.forEach(date => {
+          const dayEntries = byDate[date].sort((a, b) => a.start.localeCompare(b.start));
+          let dayTotal = dayEntries.reduce((s, e) => s + minutesBetween(e.start, e.end), 0);
+          if (isCurrent && date === todayStr()) dayTotal += getCurrentMinutes();
+
+          const d = new Date(date + 'T12:00:00');
+          const label = d.toLocaleDateString('fr-FR', {
+            weekday: 'long', day: 'numeric', month: 'long'
+          });
+
+          if (!isCurrent) {
+            // Semaine terminée → lecture seule
+            html += `
+              <div class="day-block">
+                <div class="day-header">
+                  <span>${label}</span>
+                  <span class="day-total">${formatDuration(dayTotal)}</span>
+                </div>
+                <div class="entries">
+                  ${dayEntries.map(e => `
+                    <div class="entry" style="grid-template-columns: 1fr 1fr;">
+                      <div style="color:var(--muted)">${e.start}</div>
+                      <div style="color:var(--muted)">${e.end}</div>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+            `;
+          } else {
+            // Semaine en cours → modifiable
+            html += `
+              <div class="day-block">
+                <div class="day-header">
+                  <span>${label}</span>
+                  <span class="day-total">${formatDuration(dayTotal)}</span>
+                </div>
+                <div class="entries">
+                  ${dayEntries.map(e => `
+                    <div class="entry">
+                      <div><input type="time" value="${e.start}" onchange="updateEntry('${e.id}', 'start', this.value)"></div>
+                      <div><input type="time" value="${e.end}" onchange="updateEntry('${e.id}', 'end', this.value)"></div>
+                      <div class="entry-actions">
+                        <button class="btn-secondary" onclick="editEntry('${e.id}')">✎</button>
+                        <button class="btn-danger" onclick="deleteEntry('${e.id}')">✕</button>
+                      </div>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+            `;
+          }
+        });
+
+        html += `
+            </div>
+          </div>
+        `;
+      });
+
+      container.innerHTML = html;
+    }
+
+    function renderSession() {
+      const info = document.getElementById('sessionInfo');
+      const btnIn = document.getElementById('btnClockIn');
+      const btnOut = document.getElementById('btnClockOut');
+      if (data.currentStart) {
+        const start = new Date(data.currentStart);
+        const timeStr = pad(start.getHours()) + ':' + pad(start.getMinutes());
+        info.innerHTML = `Session en cours depuis <strong>${timeStr}</strong>`;
+        btnIn.style.display = 'none';
+        btnOut.style.display = 'inline-flex';
+      } else {
+        info.textContent = 'Aucune session en cours';
+        btnIn.style.display = 'inline-flex';
+        btnOut.style.display = 'none';
+      }
+    }
+
+    function render() {
+      renderSession();
+      updateTotals();
+      renderWeekSummary();
+      renderHistory();
+    }
+
+    // ========== CRUD (avec verrouillage) ==========
+    async function updateEntry(id, field, value) {
+      const entry = data.entries.find(e => e.id === id);
+      if (!entry || isEntryLocked(entry)) {
+        showToast('Cette semaine est verrouillée', true);
+        return;
+      }
+      entry[field] = value;
+      await save();
+      render();
+    }
+
+    async function deleteEntry(id) {
+      const entry = data.entries.find(e => e.id === id);
+      if (!entry || isEntryLocked(entry)) {
+        showToast('Cette semaine est verrouillée', true);
+        return;
+      }
+      if (!confirm('Supprimer ce pointage ?')) return;
+      data.entries = data.entries.filter(e => e.id !== id);
+      await save();
+      render();
+      showToast('Pointage supprimé');
+    }
+
+    function openAddModal() {
+      editingId = null;
+      document.getElementById('modalTitle').textContent = 'Ajouter un pointage';
+      document.getElementById('modalDate').value = todayStr();
+      document.getElementById('modalStart').value = '09:00';
+      document.getElementById('modalEnd').value = '17:00';
+      document.getElementById('modal').classList.add('open');
+    }
+
+    function editEntry(id) {
+      const entry = data.entries.find(e => e.id === id);
+      if (!entry || isEntryLocked(entry)) {
+        showToast('Cette semaine est verrouillée', true);
+        return;
+      }
+      editingId = id;
+      document.getElementById('modalTitle').textContent = 'Modifier le pointage';
+      document.getElementById('modalDate').value = entry.date;
+      document.getElementById('modalStart').value = entry.start;
+      document.getElementById('modalEnd').value = entry.end;
+      document.getElementById('modal').classList.add('open');
+    }
+
+    function closeModal() {
+      document.getElementById('modal').classList.remove('open');
+      editingId = null;
+    }
+
+    async function saveModal() {
+      const date = document.getElementById('modalDate').value;
+      const start = document.getElementById('modalStart').value;
+      const end = document.getElementById('modalEnd').value;
+      if (!date || !start || !end) {
+        showToast('Tous les champs sont obligatoires', true);
+        return;
+      }
+
+      // Si on modifie une entrée d'une semaine verrouillée → bloquer
+      if (editingId) {
+        const entry = data.entries.find(e => e.id === editingId);
+        if (entry && isEntryLocked(entry)) {
+          showToast('Cette semaine est verrouillée', true);
+          return;
+        }
+        entry.date = date;
+        entry.start = start;
+        entry.end = end;
+      } else {
+        // On autorise l'ajout même sur une semaine passée (pour corrections)
+        data.entries.push({ id: generateId(), date, start, end });
+      }
+
+      await save();
+      closeModal();
+      render();
+      showToast(editingId ? 'Pointage modifié' : 'Pointage ajouté');
+    }
+
+    // ========== Export / Import ==========
+    function exportData() {
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `pointeuse-sauvegarde-${todayStr()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('Sauvegarde téléchargée');
+    }
+    async function importData(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async function(e) {
+        try {
+          const imported = JSON.parse(e.target.result);
+          if (!imported.entries || !Array.isArray(imported.entries)) throw new Error('Format invalide');
+          if (!confirm(`Importer ${imported.entries.length} pointage(s) ?\nCela remplacera les données actuelles.`)) return;
+          data = { entries: imported.entries, currentStart: imported.currentStart || null };
+          await save();
+          render();
+          showToast('Import réussi');
+        } catch (err) {
+          showToast('Fichier invalide', true);
+        }
+      };
+      reader.readAsText(file);
+      event.target.value = '';
+    }
+
+    // ========== Init ==========
+    load();
+    render();
+    updateBackupUI();
+
+    setInterval(() => {
+      if (data.currentStart) {
+        updateTotals();
+        renderWeekSummary();
+      }
+    }, 30000);
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') closeModal();
+    });
+    window.addEventListener('beforeunload', () => saveToLocalStorage());
+  </script>
+</body>
+</html>
