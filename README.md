@@ -18,6 +18,7 @@ Application web légère de pointage horaire avec calcul automatique du solde he
 - Export / Import JSON
 - Sauvegarde automatique sur le PC (File System Access API)
 
+
 ## Objectif
 
 Outil personnel pour suivre mon temps de travail pendant un stage / alternance de 4 mois, avec un bilan clair chaque vendredi.
