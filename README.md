@@ -2,7 +2,7 @@
 
 Application web légère de pointage horaire avec calcul automatique du solde hebdomadaire (base 35 h).
 
-Démo ====> https://mytechadmin.github.io/Pointeuse-stage/
+
 
 ## Fonctionnalités
 
