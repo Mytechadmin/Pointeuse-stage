@@ -516,28 +516,28 @@
       const todayMin = getTotalMinutes(e => e.date === today) + currentMin;
       const weekMin = getTotalMinutes(e => e.date >= weekStart && e.date <= today) + currentMin;
       const monthMin = getTotalMinutes(e => getMonth(e.date) === month) + currentMin;
-// Solde cumulé : somme des écarts de chaque semaine depuis le premier pointage.
-// Les semaines antérieures comptent pour 35 h chacune ; la semaine actuelle
-// compte les heures déjà réalisées, y compris une session en cours.
-const firstEntryDate = data.entries.length
-  ? data.entries.reduce((min, e) => e.date < min ? e.date : min, data.entries[0].date)
-  : today;
-const firstWeekStart = data.entries.length ? getWeekStart(firstEntryDate) : weekStart;
-let balance = 0;
-for (let cursor = new Date(firstWeekStart + 'T12:00:00');
-     cursor <= new Date(weekStart + 'T12:00:00');
-     cursor.setDate(cursor.getDate() + 7)) {
-  const cursorDate = cursor.toISOString().slice(0, 10);
-  const isCurrentWeek = cursorDate === weekStart;
-  const nextDate = new Date(cursor);
-  nextDate.setDate(nextDate.getDate() + 7);
-  const nextWeekDate = nextDate.toISOString().slice(0, 10);
-  const total = data.entries
-    .filter(e => e.date >= cursorDate && e.date < nextWeekDate)
-    .reduce((sum, e) => sum + minutesBetween(e.start, e.end), 0)
-    + (isCurrentWeek ? currentMin : 0);
-  balance += total - BASE_WEEK_MINUTES;
-}
+// Solde cumulé : additionne le solde de chaque semaine depuis le premier pointage.
+      // Les semaines sans pointage comptent aussi comme 0 h, donc -35 h.
+      const firstEntryDate = data.entries.length
+        ? data.entries.reduce((min, entry) => entry.date < min ? entry.date : min, data.entries[0].date)
+        : today;
+      const firstWeekStart = data.entries.length ? getWeekStart(firstEntryDate) : weekStart;
+
+      const addDaysToDateString = (dateStr, days) => {
+        const d = new Date(dateStr + 'T12:00:00');
+        d.setDate(d.getDate() + days);
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+      };
+
+      let balance = 0;
+      for (let cursorDate = firstWeekStart; cursorDate <= weekStart; cursorDate = addDaysToDateString(cursorDate, 7)) {
+        const nextWeekDate = addDaysToDateString(cursorDate, 7);
+        const isCurrentWeek = cursorDate === weekStart;
+        const completedEntries = data.entries.filter(e => e.date >= cursorDate && e.date < nextWeekDate);
+        const total = completedEntries.reduce((sum, e) => sum + minutesBetween(e.start, e.end), 0)
+          + (isCurrentWeek ? currentMin : 0);
+        balance += total - BASE_WEEK_MINUTES;
+      }
       document.getElementById('totalToday').textContent = formatDuration(todayMin);
       document.getElementById('totalWeek').textContent = formatDuration(weekMin);
       document.getElementById('totalMonth').textContent = formatDuration(monthMin);
